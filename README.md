@@ -30,16 +30,6 @@ Clone the repo locally and run the following command:
 dart bin/pocketbase_dart_generator.dart -u ADMIN_USERNAME -p ADMIN_PASSWORD -l POCKETBASE_URL
 ```
 
-## Hive Usage
-
-If you generate the classes with the hive option enabled can register the adapters:
-
-```dart
-registerHiveAdapters();
-```
-
-All the hive classes and fields are cached with a generated json file to ensure the index values are the same between builds (any new fields will be added to the end of the index).
-
 ## Known Limitations
 
 - [ ] Not all types supported
