@@ -3,8 +3,6 @@ import 'dart:io';
 import 'package:pocketbase_dart_generator/pocketbase_dart_generator.dart';
 import 'package:test/test.dart';
 
-import 'generated/client.dart';
-
 void main() {
   final outDir = Directory('test/generated');
   late PocketBaseGenerator client;
@@ -29,11 +27,6 @@ void main() {
     await Process.run('dart', ['run', 'build_runner', 'build']);
 
     final collections = await client.client.collections.getFullList();
-
-    // Test generated files
-    final posts = await client.client.records.getFullList('posts');
-    final post = posts.first.asPosts();
-    print('post title: ${post.title}');
 
     // Check collections
     for (final collection in collections) {

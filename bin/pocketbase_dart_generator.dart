@@ -29,6 +29,11 @@ Future<void> main(List<String> arguments) async {
       abbr: 'h',
       help: 'Hive classes',
       defaultsTo: false,
+    )
+    ..addFlag(
+      'verbose',
+      help: 'Verbose output',
+      defaultsTo: false,
     );
 
   // CLI Args
@@ -37,11 +42,14 @@ Future<void> main(List<String> arguments) async {
   final username = args['username'] as String;
   final password = args['password'] as String;
   final hive = args['hive'] as bool;
+  final verbose = args['verbose'] as bool;
 
-  print('Generating PocketBase Dart classes for $url');
+  if (verbose) {
+    print('Generating PocketBase Dart classes for $url');
+  }
 
   if (url.isEmpty || username.isEmpty || password.isEmpty) {
-    print('Missing arguments');
+    if (verbose) print('Missing arguments');
     return;
   }
 
@@ -49,8 +57,11 @@ Future<void> main(List<String> arguments) async {
   final client = PocketBaseGenerator(
     url,
     login: (client) => client.admins.authViaEmail(username, password),
+    verbose: verbose,
   );
 
   // Generate files
   await client.generate(hive: hive);
+
+  if (verbose) print('Done');
 }

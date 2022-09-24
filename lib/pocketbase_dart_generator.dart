@@ -13,11 +13,13 @@ class PocketBaseGenerator {
     this.lang = "en-US",
     this.output = 'lib/generated',
     required this.login,
+    this.verbose = false,
   });
 
   final String url;
   final String lang;
   final String output;
+  final bool verbose;
 
   final Future<AdminAuth> Function(PocketBase client) login;
 
@@ -60,7 +62,7 @@ class PocketBaseGenerator {
         }
         break;
       default:
-        print('Unknown type: ${field.type} for ${field.name}');
+        if (verbose) print('Unknown type: ${field.type} for ${field.name}');
     }
     if (!field.required && type != 'dynamic') {
       // Make optional for null safety
@@ -74,7 +76,7 @@ class PocketBaseGenerator {
     CollectionModel collection,
     int index,
   ) async {
-    print('Generating ${collection.name}...');
+    if (verbose) print('Generating ${collection.name}...');
     final file = File('${collectionsDir.path}/${collection.name}.dart');
     await file.create(recursive: true);
     final sb = StringBuffer();
@@ -167,7 +169,7 @@ class PocketBaseGenerator {
   }
 
   Future<void> _createBase() async {
-    print('Generating base...');
+    if (verbose) print('Generating base...');
     final file = File('${collectionsDir.path}/base.dart');
     await file.create(recursive: true);
     final sb = StringBuffer();
