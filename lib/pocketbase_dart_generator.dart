@@ -16,17 +16,37 @@ class PocketBaseGenerator {
     this.verbose = false,
   });
 
-  final String url;
-  final String lang;
-  final String output;
-  final bool verbose;
-
-  final Future<AdminAuth> Function(PocketBase client) login;
-
-  late final Directory outputDir = Directory(output);
+  late final PocketBase client = PocketBase(url, lang: lang);
   late final Directory collectionsDir =
       Directory('${outputDir.path}/collections');
-  late final PocketBase client = PocketBase(url, lang: lang);
+
+  final String lang;
+  final Future<AdminAuth> Function(PocketBase client) login;
+  final String output;
+  late final Directory outputDir = Directory(output);
+  final String url;
+  final bool verbose;
+
+  Future<void> generate({bool hive = true}) async {
+    await login(client);
+    outputDir.check();
+    final collections = await client.collections.getFullList();
+    collectionsDir.check();
+    await _createBase();
+    final adapters = await _getHiveInfo(
+      hive,
+      File('${outputDir.path}/adapters.json'),
+      collections.map((e) => e.name.pascalCase).toList(),
+    );
+    final futures = <Future>[];
+    for (final collection in collections) {
+      final idx = adapters[collection.name.pascalCase]!;
+      futures.add(_createCollection(hive, collection, idx));
+    }
+    await Future.wait(futures);
+    await _createCollectionIndex(hive, collections);
+    await _createClient(hive, collections);
+  }
 
   String _getDartType(SchemaField field) {
     String type = 'dynamic';
@@ -218,12 +238,76 @@ class PocketBaseGenerator {
     sb.writeln('import \'collections/index.dart\' as col;');
     sb.writeln();
     if (hive) {
-      // Register Hive adapters
-      sb.writeln('void registerHiveAdapters() {');
+      sb.writeln('class HiveClient {');
+      sb.writeln('  HiveClient(this.client);');
+      sb.writeln('  final PocketBase client;');
+      sb.writeln();
       for (final collection in collections) {
         final dartClassName = collection.name.pascalCase;
-        sb.writeln('  Hive.registerAdapter(col.${dartClassName}Adapter());');
+        sb.writeln(
+            '  late final Box<col.$dartClassName> ${collection.name.camelCase}Box;');
       }
+      sb.writeln();
+      sb.writeln('  Future<void> init() async {');
+      sb.writeln('    registerAdapters();');
+      sb.writeln('    await openBoxes();');
+      sb.writeln('  }');
+      sb.writeln();
+
+      // Open boxes
+      sb.writeln('  Future<void> openBoxes() async {');
+      for (final collection in collections) {
+        final dartClassName = collection.name.pascalCase;
+        sb.writeln(
+            '    ${collection.name.camelCase}Box = await Hive.openBox<col.$dartClassName>(\'${collection.name}\');');
+      }
+      sb.writeln('  }');
+      sb.writeln();
+
+      // // Register Hive adapters
+      sb.writeln('  void registerAdapters() {');
+      for (final collection in collections) {
+        final dartClassName = collection.name.pascalCase;
+        sb.writeln('    Hive.registerAdapter(col.${dartClassName}Adapter());');
+      }
+      sb.writeln('  }');
+      sb.writeln();
+
+      // Get collections
+      for (final collection in collections) {
+        final dartClassName = collection.name.pascalCase;
+        sb.writeln([
+          "Future<List<col.$dartClassName>> get$dartClassName() async {",
+          "  final box = ${collection.name.camelCase}Box;",
+          "  final latest = box.isEmpty",
+          "      ? null",
+          "      : box.values.reduce(",
+          "          (a, b) => a.updated.isAfter(b.updated) ? a : b,",
+          "        );",
+          "  String? filter;",
+          "  if (latest != null) {",
+          "    final d = latest.updated;",
+          "    filter = \"updated > '\";",
+          "    filter += \"\${d.year}-\${d.month.toString().padLeft(2, '0')}-\${d.day.toString().padLeft(2, '0')} \";",
+          "    filter += \"\${d.hour.toString().padLeft(2, '0')}:\${d.minute.toString().padLeft(2, '0')}:\${d.second.toString().padLeft(2, '0')} UTC\";",
+          "    filter += \"'\";",
+          "  }",
+          "  final records = await client.records.getFullList(",
+          "    '${collection.name}',",
+          "    filter: filter,",
+          "  );",
+          "  print('records: \${records.length}');",
+          "  for (final record in records) {",
+          "    final item = record.as$dartClassName();",
+          "    await box.put(item.id, item);",
+          "    print('added \${item.updated}');",
+          "  }",
+          "  return box.values.toList();",
+          "}",
+        ].join('  \n'));
+        sb.writeln();
+      }
+
       sb.writeln('}');
     }
     sb.writeln();
@@ -238,27 +322,6 @@ class PocketBaseGenerator {
     sb.writeln();
     await file.create(recursive: true);
     file.writeAsString(sb.toString());
-  }
-
-  Future<void> generate({bool hive = true}) async {
-    await login(client);
-    outputDir.check();
-    final collections = await client.collections.getFullList();
-    collectionsDir.check();
-    await _createBase();
-    final adapters = await _getHiveInfo(
-      hive,
-      File('${outputDir.path}/adapters.json'),
-      collections.map((e) => e.name.pascalCase).toList(),
-    );
-    final futures = <Future>[];
-    for (final collection in collections) {
-      final idx = adapters[collection.name.pascalCase]!;
-      futures.add(_createCollection(hive, collection, idx));
-    }
-    await Future.wait(futures);
-    await _createCollectionIndex(hive, collections);
-    await _createClient(hive, collections);
   }
 }
 
