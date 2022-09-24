@@ -24,9 +24,15 @@ Future<void> main(List<String> arguments) async {
       valueHelp: 'url',
       mandatory: true,
     )
+    ..addOption(
+      'output',
+      abbr: 'o',
+      help: 'Output',
+      valueHelp: 'output',
+      defaultsTo: 'lib/generated',
+    )
     ..addFlag(
       'hive',
-      abbr: 'h',
       help: 'Hive classes',
       defaultsTo: false,
     )
@@ -43,6 +49,7 @@ Future<void> main(List<String> arguments) async {
   final password = args['password'] as String;
   final hive = args['hive'] as bool;
   final verbose = args['verbose'] as bool;
+  final output = args['output'] as String;
 
   if (verbose) {
     print('Generating PocketBase Dart classes for $url');
@@ -58,6 +65,7 @@ Future<void> main(List<String> arguments) async {
     url,
     authenticate: (client) => client.admins.authViaEmail(username, password),
     verbose: verbose,
+    output: output,
   );
 
   // Generate files
