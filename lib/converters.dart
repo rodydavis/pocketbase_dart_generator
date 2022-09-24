@@ -1,3 +1,6 @@
+/// Pulled from RecordModel
+///
+/// https://github.com/pocketbase/dart-sdk/blob/master/lib/src/dtos/record_model.dart
 final converters = r'''
 /// Returns a single [data] value with key [fieldName] as **String**.
 ///

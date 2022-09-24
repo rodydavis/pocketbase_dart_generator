@@ -27,6 +27,7 @@ class PocketBaseGenerator {
   final String url;
   final bool verbose;
 
+  /// Generates PocketBase Dart SDK files.
   Future<void> generate({bool hive = true}) async {
     await authenticate(client);
     outputDir.check();
