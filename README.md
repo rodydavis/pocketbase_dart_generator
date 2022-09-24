@@ -32,4 +32,5 @@ dart bin/pocketbase_dart_generator.dart -u ADMIN_USERNAME -p ADMIN_PASSWORD -l P
 
 ## Known Limitations
 
-- [ ] Not all types supported (Json, File, etc...)
+- [ ] Not all types supported
+- [ ] Enums not generated for options
