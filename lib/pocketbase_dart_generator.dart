@@ -5,6 +5,8 @@ import 'dart:math';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:recase/recase.dart';
 
+import 'converters.dart';
+
 class PocketBaseGenerator {
   PocketBaseGenerator(
     this.url, {
@@ -28,6 +30,9 @@ class PocketBaseGenerator {
     String type = 'dynamic';
     switch (field.type) {
       case 'text':
+      case 'email':
+      case 'url':
+      case 'user':
         type = 'String';
         break;
       case 'number':
@@ -44,12 +49,20 @@ class PocketBaseGenerator {
         break;
       // Could be list or map
       case 'json':
-      // Type not supported yet
+        // Type not supported yet
+        break;
       case 'file':
+      case 'select':
+        if (field.options['maxSelect'] == 1) {
+          type = 'String';
+        } else {
+          type = 'List<String>';
+        }
+        break;
       default:
         print('Unknown type: ${field.type} for ${field.name}');
     }
-    if (!field.required) {
+    if (!field.required && type != 'dynamic') {
       // Make optional for null safety
       type = '$type?';
     }
@@ -111,11 +124,28 @@ class PocketBaseGenerator {
         final idx = adapters[field.name.camelCase];
         sb.writeln('  @HiveField($idx)');
       }
-      sb.writeln('  @JsonKey(name: \'${field.name}\')');
+      final dartType = _getDartType(field);
+      sb.write('  @JsonKey(name: \'${field.name}\'');
+      switch (dartType) {
+        case 'String':
+        case 'String?':
+          sb.write(', fromJson: getStringValue');
+          break;
+        case 'bool':
+        case 'bool?':
+          sb.write(', fromJson: getBoolValue');
+          break;
+        case 'num':
+        case 'num?':
+          sb.write(', fromJson: getDoubleValue');
+          break;
+        default:
+      }
+      sb.writeln(')');
       if (['id', 'created', 'updated'].contains(field.name)) {
         sb.writeln('  @override');
       }
-      sb.writeln('  final ${_getDartType(field)} ${field.name.camelCase};');
+      sb.writeln('  final $dartType ${field.name.camelCase};');
       sb.writeln();
     }
 
@@ -151,6 +181,8 @@ class PocketBaseGenerator {
 
     // Close class
     sb.writeln('}');
+    sb.writeln();
+    sb.writeln(converters);
     sb.writeln();
 
     // Write file
@@ -196,8 +228,8 @@ class PocketBaseGenerator {
     sb.writeln('extension RecordModelUtils on RecordModel {');
     for (final collection in collections) {
       final dartClassName = collection.name.pascalCase;
-      sb.writeln(
-          '  col.$dartClassName get as$dartClassName => col.$dartClassName.fromJson(toJson());');
+      sb.write('  col.$dartClassName as$dartClassName() => ');
+      sb.writeln(' col.$dartClassName.fromJson(toJson());');
     }
     sb.writeln('}');
 

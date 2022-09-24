@@ -3,16 +3,18 @@ import 'dart:io';
 import 'package:pocketbase_dart_generator/pocketbase_dart_generator.dart';
 import 'package:test/test.dart';
 
+import 'generated/client.dart';
+
 void main() {
   final outDir = Directory('test/generated');
   late PocketBaseGenerator client;
 
   setUp(() async {
     client = PocketBaseGenerator(
-      'POCKETBASE_URL',
+      'https://pocketbase.io',
       login: (client) => client.admins.authViaEmail(
-        'ADMIN_USERNAME',
-        'ADMIN_PASSWORD',
+        'test@example.com',
+        '123456',
       ),
       output: outDir.path,
     );
@@ -28,12 +30,18 @@ void main() {
 
     final collections = await client.client.collections.getFullList();
 
-    expect(outDir.existsSync(), true);
+    // Test generated files
+    final posts = await client.client.records.getFullList('posts');
+    final post = posts.first.asPosts();
+    print('post title: ${post.title}');
 
+    // Check collections
     for (final collection in collections) {
       final file = File('${collectionsDir.path}/${collection.name}.dart');
       expect(file.existsSync(), true);
     }
+
+    expect(outDir.existsSync(), true);
   });
 
   tearDown(() async {
