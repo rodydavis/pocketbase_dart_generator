@@ -40,7 +40,7 @@ class PocketBaseGenerator {
     );
     final futures = <Future>[];
     for (final collection in collections) {
-      final idx = adapters[collection.name.pascalCase]!;
+      final idx = adapters[collection.name.pascalCase] ?? -1;
       futures.add(_createCollection(hive, collection, idx));
     }
     await Future.wait(futures);
@@ -236,6 +236,7 @@ class PocketBaseGenerator {
     }
     sb.writeln();
     sb.writeln('import \'collections/index.dart\' as col;');
+    sb.writeln('import \'collections/base.dart\';');
     sb.writeln();
     if (hive) {
       sb.writeln('class HiveClient {');
@@ -276,37 +277,44 @@ class PocketBaseGenerator {
       // Get collections
       for (final collection in collections) {
         final dartClassName = collection.name.pascalCase;
-        sb.writeln([
-          "Future<List<col.$dartClassName>> get$dartClassName() async {",
-          "  final box = ${collection.name.camelCase}Box;",
-          "  final latest = box.isEmpty",
-          "      ? null",
-          "      : box.values.reduce(",
-          "          (a, b) => a.updated.isAfter(b.updated) ? a : b,",
-          "        );",
-          "  String? filter;",
-          "  if (latest != null) {",
-          "    final d = latest.updated;",
-          "    filter = \"updated > '\";",
-          "    filter += \"\${d.year}-\${d.month.toString().padLeft(2, '0')}-\${d.day.toString().padLeft(2, '0')} \";",
-          "    filter += \"\${d.hour.toString().padLeft(2, '0')}:\${d.minute.toString().padLeft(2, '0')}:\${d.second.toString().padLeft(2, '0')} UTC\";",
-          "    filter += \"'\";",
-          "  }",
-          "  final records = await client.records.getFullList(",
-          "    '${collection.name}',",
-          "    filter: filter,",
-          "  );",
-          "  print('records: \${records.length}');",
-          "  for (final record in records) {",
-          "    final item = record.as$dartClassName();",
-          "    await box.put(item.id, item);",
-          "    print('added \${item.updated}');",
-          "  }",
-          "  return box.values.toList();",
-          "}",
-        ].join('  \n'));
+        sb.writeln("  Future<List<col.$dartClassName>> get$dartClassName() =>");
+        sb.writeln(
+            "     getItems<col.$dartClassName>('${collection.name}', ${collection.name.camelCase}Box, col.$dartClassName.fromJson);");
         sb.writeln();
       }
+
+      // Write helper
+      sb.writeln([
+        '  Future<List<T>> getItems<T extends CollectionBase>(',
+        '    String name,',
+        '    Box<T> box,',
+        '    T Function(Map<String, dynamic>) fromJson,',
+        '  ) async {',
+        '    String? filter;',
+        if (hive) ...[
+          '    final latest = box.isEmpty',
+          '        ? null',
+          '        : box.values.reduce((a, b) => a.updated.isAfter(b.updated) ? a : b);',
+          '    if (latest != null) {',
+          '      final d = latest.updated;',
+          "      filter = \"updated > '\${d.year}-\${d.month.toString().padLeft(2, '0')}-\${d.day.toString().padLeft(2, '0')} \${d.hour.toString().padLeft(2, '0')}:\${d.minute.toString().padLeft(2, '0')}:\${d.second.toString().padLeft(2, '0')} UTC'\";",
+          '    }',
+          '    final records = await client.records.getFullList(',
+          '      name,',
+          '      filter: filter,',
+          '    );',
+        ] else ...[
+          '    final records = await client.records.getFullList(',
+          '      name,',
+          '    );',
+        ],
+        '    for (final record in records) {',
+        '      final item = fromJson(record.toJson());',
+        '      await box.put(item.id, item);',
+        '    }',
+        '    return box.values.toList();',
+        '  }',
+      ].join('\n'));
 
       sb.writeln('}');
     }
