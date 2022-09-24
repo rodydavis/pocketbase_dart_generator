@@ -19,7 +19,7 @@ final client = PocketBaseGenerator(
 Then call the generate function to create files at the specified output directory:
 
 ```dart
-await client.generate();
+await client.generate(hive: true);
 ```
 
 ## CLI Usage
