@@ -23,6 +23,12 @@ Future<void> main(List<String> arguments) async {
       help: 'Url',
       valueHelp: 'url',
       mandatory: true,
+    )
+    ..addFlag(
+      'hive',
+      abbr: 'h',
+      help: 'Hive classes',
+      defaultsTo: false,
     );
 
   // CLI Args
@@ -30,6 +36,7 @@ Future<void> main(List<String> arguments) async {
   final url = args['url'] as String;
   final username = args['username'] as String;
   final password = args['password'] as String;
+  final hive = args['hive'] as bool;
 
   print('Generating PocketBase Dart classes for $url');
 
@@ -45,5 +52,5 @@ Future<void> main(List<String> arguments) async {
   );
 
   // Generate files
-  await client.generate();
+  await client.generate(hive: hive);
 }

@@ -18,9 +18,22 @@ void main() {
     );
   });
 
-  test('generate', () async {
-    await client.generate();
+  test('hive generate test', () async {
+    await client.generate(hive: true);
+
+    final collectionsDir = Directory('${outDir.path}/collections');
+
+    // Run process: dart run build_runner build
+    await Process.run('dart', ['run', 'build_runner', 'build']);
+
+    final collections = await client.client.collections.getFullList();
+
     expect(outDir.existsSync(), true);
+
+    for (final collection in collections) {
+      final file = File('${collectionsDir.path}/${collection.name}.dart');
+      expect(file.existsSync(), true);
+    }
   });
 
   tearDown(() async {

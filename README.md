@@ -29,3 +29,8 @@ Clone the repo locally and run the following command:
 ```bash
 dart bin/pocketbase_dart_generator.dart -u ADMIN_USERNAME -p ADMIN_PASSWORD -l POCKETBASE_URL
 ```
+
+## Known Limitations
+
+- [ ] Not all types supported (Json, File, etc...)
+- [ ] 

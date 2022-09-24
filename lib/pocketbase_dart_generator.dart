@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:pocketbase/pocketbase.dart';
 import 'package:recase/recase.dart';
@@ -9,14 +11,11 @@ class PocketBaseGenerator {
     this.lang = "en-US",
     this.output = 'lib/generated',
     required this.login,
-    bool generateHive = true,
-    bool generateDrift = false,
-  }) : _hive = generateHive;
+  });
 
   final String url;
   final String lang;
   final String output;
-  final bool _hive;
 
   final Future<AdminAuth> Function(PocketBase client) login;
 
@@ -57,7 +56,11 @@ class PocketBaseGenerator {
     return type;
   }
 
-  Future<void> _createCollection(CollectionModel collection, int index) async {
+  Future<void> _createCollection(
+    bool hive,
+    CollectionModel collection,
+    int index,
+  ) async {
     print('Generating ${collection.name}...');
     final file = File('${collectionsDir.path}/${collection.name}.dart');
     await file.create(recursive: true);
@@ -65,14 +68,22 @@ class PocketBaseGenerator {
 
     // Generate JSON and Hive
     final dartClassName = collection.name.pascalCase;
-    final schema = collection.schema
-      ..insert(0,
-          SchemaField(name: 'id', type: 'text', required: true, unique: true))
-      ..add(SchemaField(name: 'created', type: 'date', required: true))
-      ..add(SchemaField(name: 'updated', type: 'date', required: true));
+    final schema = collection.schema;
+    schema.insert(
+      0,
+      SchemaField(name: 'id', type: 'text', required: true, unique: true),
+    );
+    schema.add(SchemaField(name: 'created', type: 'date', required: true));
+    schema.add(SchemaField(name: 'updated', type: 'date', required: true));
+    final adapters = await _getHiveInfo(
+      hive,
+      File('${collectionsDir.path}/${collection.name}.json'),
+      schema.map((e) => e.name.camelCase).toList(),
+    );
+
     // Generate Class
     sb.writeln('import \'package:json_annotation/json_annotation.dart\';');
-    if (_hive) {
+    if (hive) {
       sb.writeln('import \'package:hive/hive.dart\';');
     }
     sb.writeln();
@@ -80,7 +91,7 @@ class PocketBaseGenerator {
     sb.writeln();
     sb.writeln('part \'${collection.name}.g.dart\';');
     sb.writeln();
-    if (_hive) {
+    if (hive) {
       sb.writeln('@HiveType(typeId: $index)');
     }
     sb.writeln('@JsonSerializable()');
@@ -95,9 +106,9 @@ class PocketBaseGenerator {
     sb.writeln();
 
     // Generate fields
-    var idx = 0;
     for (final field in schema) {
-      if (_hive) {
+      if (hive) {
+        final idx = adapters[field.name.camelCase];
         sb.writeln('  @HiveField($idx)');
       }
       sb.writeln('  @JsonKey(name: \'${field.name}\')');
@@ -106,7 +117,6 @@ class PocketBaseGenerator {
       }
       sb.writeln('  final ${_getDartType(field)} ${field.name.camelCase};');
       sb.writeln();
-      idx++;
     }
 
     // Generate toJson
@@ -147,7 +157,10 @@ class PocketBaseGenerator {
     await file.writeAsString(sb.toString());
   }
 
-  Future<void> _createCollectionIndex(List<CollectionModel> collections) async {
+  Future<void> _createCollectionIndex(
+    bool hive,
+    List<CollectionModel> collections,
+  ) async {
     final file = File('${collectionsDir.path}/index.dart');
     final sb = StringBuffer();
     for (final collection in collections) {
@@ -157,12 +170,28 @@ class PocketBaseGenerator {
     await file.writeAsString(sb.toString());
   }
 
-  Future<void> _createClient(List<CollectionModel> collections) async {
+  Future<void> _createClient(
+    bool hive,
+    List<CollectionModel> collections,
+  ) async {
     final file = File('${outputDir.path}/client.dart');
     final sb = StringBuffer();
     sb.writeln('import \'package:pocketbase/pocketbase.dart\';');
+    if (hive) {
+      sb.writeln('import \'package:hive/hive.dart\';');
+    }
     sb.writeln();
     sb.writeln('import \'collections/index.dart\' as col;');
+    sb.writeln();
+    if (hive) {
+      // Register Hive adapters
+      sb.writeln('void registerHiveAdapters() {');
+      for (final collection in collections) {
+        final dartClassName = collection.name.pascalCase;
+        sb.writeln('  Hive.registerAdapter(col.${dartClassName}Adapter());');
+      }
+      sb.writeln('}');
+    }
     sb.writeln();
     sb.writeln('extension RecordModelUtils on RecordModel {');
     for (final collection in collections) {
@@ -177,21 +206,25 @@ class PocketBaseGenerator {
     file.writeAsString(sb.toString());
   }
 
-  Future<void> generate() async {
+  Future<void> generate({bool hive = true}) async {
     await login(client);
     outputDir.check();
     final collections = await client.collections.getFullList();
     collectionsDir.check();
     await _createBase();
+    final adapters = await _getHiveInfo(
+      hive,
+      File('${outputDir.path}/adapters.json'),
+      collections.map((e) => e.name.pascalCase).toList(),
+    );
     final futures = <Future>[];
-    var idx = 0;
     for (final collection in collections) {
-      futures.add(_createCollection(collection, idx));
-      idx++;
+      final idx = adapters[collection.name.pascalCase]!;
+      futures.add(_createCollection(hive, collection, idx));
     }
     await Future.wait(futures);
-    await _createCollectionIndex(collections);
-    await _createClient(collections);
+    await _createCollectionIndex(hive, collections);
+    await _createClient(hive, collections);
   }
 }
 
@@ -201,4 +234,33 @@ extension on Directory {
       createSync(recursive: true);
     }
   }
+}
+
+Future<Map<String, int>> _getHiveInfo(
+  bool hive,
+  File file,
+  List<String> fields,
+) async {
+  final adapters = <String, int>{};
+  if (!hive) return adapters;
+  var idx = 0;
+  if (await file.exists()) {
+    final json = await file.readAsString();
+    final map = jsonDecode(json) as Map<String, dynamic>;
+    for (final entry in map.entries) {
+      adapters[entry.key] = entry.value;
+    }
+    // Get highest index
+    idx = adapters.values.reduce(max) + 1;
+  }
+  for (final entry in fields) {
+    final name = entry;
+    if (adapters[name] != null) {
+      continue;
+    }
+    adapters[name] = idx;
+    idx++;
+  }
+  await file.writeAsString(jsonEncode(adapters));
+  return adapters;
 }
