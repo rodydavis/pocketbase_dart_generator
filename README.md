@@ -9,7 +9,7 @@ Create an instance of the client:
 ```dart
 final client = PocketBaseGenerator(
   'POCKETBASE_URL',
-  login: (client) => client.admins.authViaEmail(
+  authenticate: (client) => client.admins.authViaEmail(
     'ADMIN_USERNAME',
     'ADMIN_PASSWORD',
   ),

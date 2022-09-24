@@ -10,7 +10,7 @@ void main() {
   setUp(() async {
     client = PocketBaseGenerator(
       'https://pocketbase.io',
-      login: (client) => client.admins.authViaEmail(
+      authenticate: (client) => client.admins.authViaEmail(
         'test@example.com',
         '123456',
       ),

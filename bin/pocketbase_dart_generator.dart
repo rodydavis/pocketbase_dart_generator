@@ -56,7 +56,7 @@ Future<void> main(List<String> arguments) async {
   // Create client
   final client = PocketBaseGenerator(
     url,
-    login: (client) => client.admins.authViaEmail(username, password),
+    authenticate: (client) => client.admins.authViaEmail(username, password),
     verbose: verbose,
   );
 

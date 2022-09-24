@@ -12,7 +12,7 @@ class PocketBaseGenerator {
     this.url, {
     this.lang = "en-US",
     this.output = 'lib/generated',
-    required this.login,
+    required this.authenticate,
     this.verbose = false,
   });
 
@@ -21,14 +21,14 @@ class PocketBaseGenerator {
       Directory('${outputDir.path}/collections');
 
   final String lang;
-  final Future<AdminAuth> Function(PocketBase client) login;
+  final Future<AdminAuth> Function(PocketBase client) authenticate;
   final String output;
   late final Directory outputDir = Directory(output);
   final String url;
   final bool verbose;
 
   Future<void> generate({bool hive = true}) async {
-    await login(client);
+    await authenticate(client);
     outputDir.check();
     final collections = await client.collections.getFullList();
     collectionsDir.check();
