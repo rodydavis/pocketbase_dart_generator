@@ -240,8 +240,8 @@ class PocketBaseGenerator {
     sb.writeln('import \'collections/base.dart\';');
     sb.writeln();
     if (hive) {
-      sb.writeln('class HiveClient {');
-      sb.writeln('  HiveClient(this.client);');
+      sb.writeln('class DbClient {');
+      sb.writeln('  DbClient(this.client);');
       sb.writeln('  final PocketBase client;');
       sb.writeln();
       for (final collection in collections) {
@@ -280,7 +280,7 @@ class PocketBaseGenerator {
         final dartClassName = collection.name.pascalCase;
         sb.writeln("  Future<List<col.$dartClassName>> get$dartClassName() =>");
         sb.writeln(
-            "     getItems<col.$dartClassName>('${collection.name}', ${collection.name.camelCase}Box, col.$dartClassName.fromJson);");
+            "     getItems<col.$dartClassName>('${collection.name}', ${collection.name.camelCase}Box, col.$dartClassName.fromJson,);");
         sb.writeln();
       }
 
@@ -320,13 +320,13 @@ class PocketBaseGenerator {
       sb.writeln('}');
     }
     sb.writeln();
-    sb.writeln('extension RecordModelUtils on RecordModel {');
-    for (final collection in collections) {
-      final dartClassName = collection.name.pascalCase;
-      sb.write('  col.$dartClassName as$dartClassName() => ');
-      sb.writeln(' col.$dartClassName.fromJson(toJson());');
-    }
-    sb.writeln('}');
+    // sb.writeln('extension RecordModelUtils on RecordModel {');
+    // for (final collection in collections) {
+    //   final dartClassName = collection.name.pascalCase;
+    //   sb.write('  col.$dartClassName as$dartClassName() => ');
+    //   sb.writeln(' col.$dartClassName.fromJson(toJson());');
+    // }
+    // sb.writeln('}');
 
     sb.writeln();
     await file.create(recursive: true);
