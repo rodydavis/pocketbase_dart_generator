@@ -6,6 +6,7 @@ import 'package:pocketbase/pocketbase.dart';
 import 'package:recase/recase.dart';
 
 import 'converters.dart';
+import 'templates/freezed.dart';
 
 class PocketBaseGenerator {
   PocketBaseGenerator(
@@ -100,9 +101,6 @@ class PocketBaseGenerator {
     if (verbose) print('Generating ${collection.name}...');
     final file = File('${collectionsDir.path}/${collection.name}.dart');
     await file.create(recursive: true);
-    final sb = StringBuffer();
-
-    // Generate JSON and Hive
     final dartClassName = collection.name.pascalCase;
     final schema = collection.schema;
     schema.insert(
@@ -111,82 +109,50 @@ class PocketBaseGenerator {
     );
     schema.add(SchemaField(name: 'created', type: 'date', required: true));
     schema.add(SchemaField(name: 'updated', type: 'date', required: true));
+
     final adapters = await _getHiveInfo(
       hive,
       File('${collectionsDir.path}/${collection.name}.json'),
       schema.map((e) => e.name.camelCase).toList(),
     );
 
-    // Generate Class
-    sb.writeln('import \'package:json_annotation/json_annotation.dart\';');
-    if (hive) {
-      sb.writeln('import \'package:hive/hive.dart\';');
-    }
-    sb.writeln();
-    sb.writeln('import \'base.dart\';');
-    sb.writeln();
-    sb.writeln('part \'${collection.name}.g.dart\';');
-    sb.writeln();
-    if (hive) {
-      sb.writeln('@HiveType(typeId: $index)');
-    }
-    sb.writeln('@JsonSerializable()');
-    sb.writeln('class $dartClassName extends CollectionBase {');
+    final template = FreezedTemplate(
+      file: collection.name,
+      className: dartClassName,
+      typeId: hive ? index : null,
+      fields: [],
+    );
 
-    // Generate constructor
-    sb.writeln('  const $dartClassName({');
     for (final field in schema) {
-      sb.writeln('    required this.${field.name.camelCase},');
-    }
-    sb.writeln('  });');
-    sb.writeln();
-
-    // Generate fields
-    for (final field in schema) {
-      if (hive) {
-        final idx = adapters[field.name.camelCase];
-        sb.writeln('  @HiveField($idx)');
-      }
+      var jsonOverride = "name: '${field.name}'";
       final dartType = _getDartType(field);
-      sb.write('  @JsonKey(name: \'${field.name}\'');
       switch (dartType) {
         case 'String':
         case 'String?':
-          sb.write(', fromJson: getStringValue');
+          jsonOverride += ', fromJson: getStringValue';
           break;
         case 'bool':
         case 'bool?':
-          sb.write(', fromJson: getBoolValue');
+          jsonOverride += ', fromJson: getBoolValue';
           break;
         case 'num':
         case 'num?':
-          sb.write(', fromJson: getDoubleValue');
+          jsonOverride += ', fromJson: getDoubleValue';
           break;
         default:
       }
-      sb.writeln(')');
-      if (['id', 'created', 'updated'].contains(field.name)) {
-        sb.writeln('  @override');
-      }
-      sb.writeln('  final $dartType ${field.name.camelCase};');
-      sb.writeln();
+
+      template.fields.add(FreezedField(
+        name: field.name.camelCase,
+        type: dartType,
+        jsonOverride: jsonOverride,
+        required: !dartType.endsWith('?'),
+        hiveField: hive ? adapters[field.name.camelCase] : null,
+      ));
     }
 
-    // Generate toJson
-    sb.writeln(
-        '  Map<String, dynamic> toJson() => _\$${dartClassName}ToJson(this);');
-    sb.writeln();
-
-    // Generate fromJson
-    sb.writeln(
-        '  factory $dartClassName.fromJson(Map<String, dynamic> json) => _\$${dartClassName}FromJson(json);');
-
-    // Close class
-    sb.writeln('}');
-    sb.writeln();
-
     // Write file
-    await file.writeAsString(sb.toString());
+    await file.writeAsString(template.render());
   }
 
   Future<void> _createBase() async {
