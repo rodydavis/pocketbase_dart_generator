@@ -90,6 +90,10 @@ class PocketBaseGenerator {
       // Make optional for null safety
       type = '$type?';
     }
+    if (field.name != 'created' && field.name != 'updated' && type == 'DateTime') {
+      // Make date optional for parsing errors
+      type = 'DateTime?';
+    }
     return type;
   }
 
@@ -138,6 +142,12 @@ class PocketBaseGenerator {
         case 'num':
         case 'num?':
           jsonOverride += ', fromJson: getDoubleValue';
+          break;
+        case 'DateTime':
+        case 'DateTime?':
+          if (field.name != 'created' && field.name != 'updated') {
+            jsonOverride += ', fromJson: getDateTimeValue';
+          }
           break;
         default:
       }

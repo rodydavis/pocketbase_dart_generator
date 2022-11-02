@@ -147,4 +147,20 @@ double getDoubleValue(dynamic rawValue) {
   return 0;
 }
 
+DateTime? getDateTimeValue(dynamic rawValue) {
+  if (rawValue == null) {
+    return null;
+  }
+
+  if (rawValue is DateTime) {
+    return rawValue;
+  }
+
+  if (rawValue is String && rawValue.isNotEmpty) {
+    return DateTime.tryParse(rawValue);
+  }
+
+  return null;
+}
+
 ''';
