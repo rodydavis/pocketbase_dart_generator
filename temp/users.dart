@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:http/http.dart' as http;
 import 'package:pocketbase/pocketbase.dart';
 import 'package:sqlite3/common.dart';
 
@@ -59,15 +60,15 @@ class UsersRepository {
     BEGIN;
     CREATE TABLE `users` (
       `id` TEXT NOT NULL,
-      `$name` TEXT ,
-      `$avatar` TEXT ,
-      `$website` TEXT ,
+      `name` TEXT,
+      `avatar` TEXT,
+      `website` TEXT,
       `collectionId` TEXT NOT NULL,
       `collectionName` TEXT NOT NULL,
       `created` TEXT NOT NULL,
       `updated` TEXT NOT NULL,
       PRIMARY KEY (`id`),
-      FOREIGN KEY (`collectionId`) REFERENCES `collections` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+      FOREIGN KEY (`collectionId`) REFERENCES `_collections` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
     ) WITHOUT ROWID;
     CREATE INDEX `_POWMOh0W6IoLUAI_created_idx` ON `users` (`created`);
     COMMIT;
@@ -125,9 +126,9 @@ class UsersRepository {
     database.execute(r"""
     INSERT INTO `users` (
       `id`,
-      `$name`,
-      `$avatar`,
-      `$website`,
+      `name`,
+      `avatar`,
+      `website`,
       `collectionId`,
       `collectionName`,
       `created`,
@@ -165,9 +166,9 @@ class UsersRepository {
     database.execute(r"""
     UPDATE `users`
     SET
-      `$name` = ?,
-      `$avatar` = ?,
-      `$website` = ?,
+      `name` = ?,
+      `avatar` = ?,
+      `website` = ?,
       `updated` = ?
     WHERE `id` = ?
     """, [
@@ -192,14 +193,18 @@ class UsersRepository {
     String? $name,
     String? $avatar,
     Uri? $website,
+    List<http.MultipartFile> files = const [],
   }) async {
     final $id = id ?? idGenerator();
-    final result = await client.collection('POWMOh0W6IoLUAI').create(body: {
-      'id': $id,
-      'name': $name,
-      'avatar': $avatar,
-      'website': $website,
-    });
+    final result = await client.collection('POWMOh0W6IoLUAI').create(
+      body: {
+        'id': $id,
+        'name': $name,
+        'avatar': $avatar,
+        'website': $website,
+      }, 
+      files: files
+    );
     return itemFromJson(result.toJson());
   }
 
@@ -208,6 +213,7 @@ class UsersRepository {
     String? $name,
     String? $avatar,
     Uri? $website,
+    List<http.MultipartFile> files = const [],
   }) async {
     final result = await client.collection('POWMOh0W6IoLUAI').update(
       id,
@@ -216,6 +222,7 @@ class UsersRepository {
         'avatar': $avatar,
         'website': $website,
       },
+      files: files,
     );
     return itemFromJson(result.toJson());
   }

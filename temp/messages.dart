@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:http/http.dart' as http;
 import 'package:pocketbase/pocketbase.dart';
 import 'package:sqlite3/common.dart';
 
@@ -55,14 +56,14 @@ class MessagesRepository {
     BEGIN;
     CREATE TABLE `messages` (
       `id` TEXT NOT NULL,
-      `$message` TEXT NOT NULL,
-      `$author` TEXT NOT NULL,
+      `message` TEXT NOT NULL,
+      `author` TEXT NOT NULL,
       `collectionId` TEXT NOT NULL,
       `collectionName` TEXT NOT NULL,
       `created` TEXT NOT NULL,
       `updated` TEXT NOT NULL,
       PRIMARY KEY (`id`),
-      FOREIGN KEY (`collectionId`) REFERENCES `collections` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+      FOREIGN KEY (`collectionId`) REFERENCES `_collections` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
     ) WITHOUT ROWID;
     CREATE INDEX `messages_created_idx` ON `messages` (`created`);
     COMMIT;
@@ -119,8 +120,8 @@ class MessagesRepository {
     database.execute(r"""
     INSERT INTO `messages` (
       `id`,
-      `$message`,
-      `$author`,
+      `message`,
+      `author`,
       `collectionId`,
       `collectionName`,
       `created`,
@@ -155,8 +156,8 @@ class MessagesRepository {
     database.execute(r"""
     UPDATE `messages`
     SET
-      `$message` = ?,
-      `$author` = ?,
+      `message` = ?,
+      `author` = ?,
       `updated` = ?
     WHERE `id` = ?
     """, [
@@ -179,13 +180,17 @@ class MessagesRepository {
     String? id,
     required String $message,
     required String $author,
+    List<http.MultipartFile> files = const [],
   }) async {
     final $id = id ?? idGenerator();
-    final result = await client.collection('XTpascjA7jyzB88').create(body: {
-      'id': $id,
-      'message': $message,
-      'author': $author,
-    });
+    final result = await client.collection('XTpascjA7jyzB88').create(
+      body: {
+        'id': $id,
+        'message': $message,
+        'author': $author,
+      }, 
+      files: files
+    );
     return itemFromJson(result.toJson());
   }
 
@@ -193,6 +198,7 @@ class MessagesRepository {
     required String id,
     required String $message,
     required String $author,
+    List<http.MultipartFile> files = const [],
   }) async {
     final result = await client.collection('XTpascjA7jyzB88').update(
       id,
@@ -200,6 +206,7 @@ class MessagesRepository {
         'message': $message,
         'author': $author,
       },
+      files: files,
     );
     return itemFromJson(result.toJson());
   }

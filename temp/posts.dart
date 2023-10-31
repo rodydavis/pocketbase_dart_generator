@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:http/http.dart' as http;
 import 'package:pocketbase/pocketbase.dart';
 import 'package:sqlite3/common.dart';
 
@@ -86,17 +87,17 @@ class PostsRepository {
     BEGIN;
     CREATE TABLE `posts` (
       `id` TEXT NOT NULL,
-      `$title` TEXT NOT NULL,
-      `$description` TEXT ,
-      `$active` INTEGER ,
-      `options` TEXT ,
-      `$featuredImages` TEXT ,
+      `title` TEXT NOT NULL,
+      `description` TEXT,
+      `active` INTEGER,
+      `options` TEXT,
+      `featuredImages` TEXT,
       `collectionId` TEXT NOT NULL,
       `collectionName` TEXT NOT NULL,
       `created` TEXT NOT NULL,
       `updated` TEXT NOT NULL,
       PRIMARY KEY (`id`),
-      FOREIGN KEY (`collectionId`) REFERENCES `collections` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+      FOREIGN KEY (`collectionId`) REFERENCES `_collections` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
     ) WITHOUT ROWID;
     CREATE INDEX `posts_created_idx` ON `posts` (`created`);
     COMMIT;
@@ -156,11 +157,11 @@ class PostsRepository {
     database.execute(r"""
     INSERT INTO `posts` (
       `id`,
-      `$title`,
-      `$description`,
-      `$active`,
+      `title`,
+      `description`,
+      `active`,
       `options`,
-      `$featuredImages`,
+      `featuredImages`,
       `collectionId`,
       `collectionName`,
       `created`,
@@ -204,11 +205,11 @@ class PostsRepository {
     database.execute(r"""
     UPDATE `posts`
     SET
-      `$title` = ?,
-      `$description` = ?,
-      `$active` = ?,
+      `title` = ?,
+      `description` = ?,
+      `active` = ?,
       `options` = ?,
-      `$featuredImages` = ?,
+      `featuredImages` = ?,
       `updated` = ?
     WHERE `id` = ?
     """, [
@@ -237,16 +238,20 @@ class PostsRepository {
     bool? $active,
     Options? options,
     String? $featuredImages,
+    List<http.MultipartFile> files = const [],
   }) async {
     final $id = id ?? idGenerator();
-    final result = await client.collection('BHKW36mJl3ZPt6z').create(body: {
-      'id': $id,
-      'title': $title,
-      'description': $description,
-      'active': $active,
-      'options': options,
-      'featuredImages': $featuredImages,
-    });
+    final result = await client.collection('BHKW36mJl3ZPt6z').create(
+      body: {
+        'id': $id,
+        'title': $title,
+        'description': $description,
+        'active': $active,
+        'options': options,
+        'featuredImages': $featuredImages,
+      }, 
+      files: files
+    );
     return itemFromJson(result.toJson());
   }
 
@@ -257,6 +262,7 @@ class PostsRepository {
     bool? $active,
     Options? options,
     String? $featuredImages,
+    List<http.MultipartFile> files = const [],
   }) async {
     final result = await client.collection('BHKW36mJl3ZPt6z').update(
       id,
@@ -267,6 +273,7 @@ class PostsRepository {
         'options': options,
         'featuredImages': $featuredImages,
       },
+      files: files,
     );
     return itemFromJson(result.toJson());
   }

@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:http/http.dart' as http;
 import 'package:pocketbase/pocketbase.dart';
 import 'package:sqlite3/common.dart';
 
@@ -55,14 +56,14 @@ class MessagesReportRepository {
     BEGIN;
     CREATE TABLE `messagesReport` (
       `id` TEXT NOT NULL,
-      `$author` TEXT NOT NULL,
-      `$total` REAL ,
+      `author` TEXT NOT NULL,
+      `total` REAL,
       `collectionId` TEXT NOT NULL,
       `collectionName` TEXT NOT NULL,
       `created` TEXT NOT NULL,
       `updated` TEXT NOT NULL,
       PRIMARY KEY (`id`),
-      FOREIGN KEY (`collectionId`) REFERENCES `collections` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+      FOREIGN KEY (`collectionId`) REFERENCES `_collections` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
     ) WITHOUT ROWID;
     COMMIT;
     """);

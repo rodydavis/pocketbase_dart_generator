@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:pocketbase/pocketbase.dart';
+import 'package:pocketbase_dart_generator/src/data/source/templates/collection.dart';
+import 'package:pocketbase_dart_generator/src/domain/usecase/convert_collections_to_files.dart';
+import 'package:pocketbase_dart_generator/src/domain/usecase/render_file_template.dart';
 import 'package:pocketbase_dart_generator/src/generator.dart';
 
 Future<void> main(List<String> arguments) async {
@@ -75,13 +78,22 @@ Future<void> main(List<String> arguments) async {
     return;
   }
 
+  final dir = Directory(output);
+  if (dir.existsSync()) {
+    dir.deleteSync(recursive: true);
+    dir.createSync(recursive: true);
+  }
   final pb = PocketBase(url);
   await pb.admins.authWithPassword(username, password);
   final collections = await pb.collections.getFullList();
-  final files = convertCollections(collections, storageType, hive);
+  final files = ConvertCollectionsToFiles().execute(
+    collections,
+    storageType,
+    hive,
+  );
   for (final value in files) {
-    final str = renderTemplate(value);
-    final file = File('$output/${value.filename}.dart');
+    final str = RenderFileTemplate(COLLECTION_TEMPLATE).execute(value);
+    final file = File('${dir.path}/${value.filename}.dart');
     if (!file.existsSync()) {
       file.createSync(recursive: true);
     }

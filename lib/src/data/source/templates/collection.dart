@@ -1,15 +1,9 @@
-import 'dart:convert';
-
-import 'package:mustache_recase/mustache_recase.dart' as mustache_recase;
-import 'package:mustache_template/mustache.dart';
-import 'package:pocketbase/pocketbase.dart';
-import 'package:recase/recase.dart';
-
-final template = r'''
+final COLLECTION_TEMPLATE = r'''
 import 'package:json_annotation/json_annotation.dart';
 {{#hasHive}}
 import 'package:hive/hive.dart';
 {{/hasHive}}
+import 'package:http/http.dart' as http;
 import 'package:pocketbase/pocketbase.dart';
 import 'package:sqlite3/common.dart';
 
@@ -95,14 +89,14 @@ class {{name}}Repository {
     CREATE TABLE `{{collectionName}}` (
       `id` TEXT NOT NULL,
       {{#fields}}
-      `{{name}}` {{sql}} {{#required}}NOT NULL{{/required}},
+      `{{description}}` {{sql}}{{#required}} NOT NULL{{/required}},
       {{/fields}}
       `collectionId` TEXT NOT NULL,
       `collectionName` TEXT NOT NULL,
       `created` TEXT NOT NULL,
       `updated` TEXT NOT NULL,
       PRIMARY KEY (`id`),
-      FOREIGN KEY (`collectionId`) REFERENCES `collections` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+      FOREIGN KEY (`collectionId`) REFERENCES `_collections` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
     ) WITHOUT ROWID;
     {{#indexes}}
     {{.}};
@@ -169,7 +163,7 @@ class {{name}}Repository {
     INSERT INTO `{{collectionName}}` (
       `id`,
       {{#fields}}
-      `{{name}}`,
+      `{{description}}`,
       {{/fields}}
       `collectionId`,
       `collectionName`,
@@ -209,7 +203,7 @@ class {{name}}Repository {
     UPDATE `{{collectionName}}`
     SET
       {{#fields}}
-      `{{name}}` = ?,
+      `{{description}}` = ?,
       {{/fields}}
       `updated` = ?
     WHERE `id` = ?
@@ -235,14 +229,18 @@ class {{name}}Repository {
     {{#fields}}
     {{#required}}required {{/required}}{{type}}{{^required}}?{{/required}} {{name}},
     {{/fields}}
+    List<http.MultipartFile> files = const [],
   }) async {
     final $id = id ?? idGenerator();
-    final result = await client.collection('{{collectionId}}').create(body: {
-      'id': $id,
-      {{#fields}}
-      '{{description}}': {{name}},
-      {{/fields}}
-    });
+    final result = await client.collection('{{collectionId}}').create(
+      body: {
+        'id': $id,
+        {{#fields}}
+        '{{description}}': {{name}},
+        {{/fields}}
+      }, 
+      files: files
+    );
     return itemFromJson(result.toJson());
   }
 
@@ -251,6 +249,7 @@ class {{name}}Repository {
     {{#fields}}
     {{#required}}required {{/required}}{{type}}{{^required}}?{{/required}} {{name}},
     {{/fields}}
+    List<http.MultipartFile> files = const [],
   }) async {
     final result = await client.collection('{{collectionId}}').update(
       id,
@@ -259,6 +258,7 @@ class {{name}}Repository {
         '{{description}}': {{name}},
         {{/fields}}
       },
+      files: files,
     );
     return itemFromJson(result.toJson());
   }
@@ -270,187 +270,3 @@ class {{name}}Repository {
 }
 {{/classes}}
 ''';
-
-class $File {
-  final String filename;
-  final List<$Class> classes;
-
-  $File({
-    required this.filename,
-    required this.classes,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'filename': filename,
-      'classes': classes.map((e) => e.toJson()).toList(),
-      'hasHive': classes.any((e) => e.hiveTypeAdapter != null),
-    };
-  }
-}
-
-class $Class {
-  final int? hiveTypeAdapter;
-  final String name;
-  final String description;
-  final String collectionId;
-  final String collectionName;
-  final List<$Field> fields;
-  final List<String> indexes;
-  final String? query;
-  final String type;
-
-  String? get hiveType => hiveTypeAdapter?.toString();
-  bool get hasQuery => query != null && query!.isNotEmpty;
-
-  $Class({
-    required this.hiveTypeAdapter,
-    required this.name,
-    required this.type,
-    required this.description,
-    required this.collectionId,
-    required this.collectionName,
-    required this.fields,
-    required this.indexes,
-    required this.query,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'type': type,
-      'description': description,
-      'hiveType': hiveType,
-      'collectionId': collectionId,
-      'collectionName': collectionName,
-      'indexes': indexes,
-      'query': query,
-      'hasQuery': hasQuery,
-      'fields': [
-        for (var i = 0; i < fields.length; i++)
-          fields[i].toJson(hiveType != null ? i : null),
-      ],
-    };
-  }
-}
-
-class $Field {
-  final String name;
-  final String description;
-  final bool isRequired;
-  final bool isFinal;
-  final String type;
-  final List<String>? options;
-
-  bool get isEnum => options != null && options!.isNotEmpty;
-
-  $Field({
-    required this.name,
-    required this.description,
-    required this.isRequired,
-    required this.isFinal,
-    required this.type,
-    required this.options,
-  });
-
-  String get typeName {
-    if (type == 'url') return 'Uri';
-    if (type == 'select') return name.pascalCase;
-    const stringTypes = ['text', 'file', 'relation', 'editor', 'email'];
-    if (stringTypes.contains(type)) return 'String';
-    if (type == 'bool') return 'bool';
-    if (type == 'number') return 'num';
-    if (type == 'date') return 'DateTime';
-    return 'dynamic';
-  }
-
-  String get sql {
-    const stringTypes = [
-      'text',
-      'file',
-      'relation',
-      'editor',
-      'email',
-      'url',
-      'select',
-      'date',
-    ];
-    if (stringTypes.contains(type)) return 'TEXT';
-    if (type == 'bool') return 'INTEGER';
-    if (type == 'number') return 'REAL';
-    return '';
-  }
-
-  Map<String, dynamic> toJson(int? hiveType) {
-    return {
-      'name': name,
-      if (hiveType != null) 'hiveType': hiveType,
-      'description': description,
-      'required': isRequired,
-      'final': isFinal,
-      'enum': isEnum,
-      'options': options,
-      'defaultValue': null,
-      'type': typeName,
-      'sql': sql,
-    };
-  }
-}
-
-String renderTemplate($File value) {
-  final target = Template(template);
-  final variables = value.toJson();
-  // print(JsonEncoder.withIndent(' ').convert(variables));
-  variables.addAll(mustache_recase.cases);
-  final output = target.renderString(variables);
-  return output;
-}
-
-List<$File> convertCollections(
-  List<CollectionModel> collections,
-  StorageType storage,
-  bool hive,
-) {
-  final files = <$File>[];
-  for (var i = 0; i < collections.length; i++) {
-    final collection = collections[i];
-    print(JsonEncoder.withIndent(' ').convert(collection));
-    final file = $File(
-      filename: collection.name.snakeCase,
-      classes: [
-        $Class(
-          query: collection.options['query'] as String?,
-          type: collection.type,
-          description: collection.name,
-          hiveTypeAdapter: hive ? i : null,
-          name: collection.name.pascalCase,
-          collectionId: collection.id,
-          collectionName: collection.name,
-          indexes: collection.indexes,
-          fields: [
-            for (final field in collection.schema)
-              $Field(
-                name: field.type == 'select'
-                    ? field.name.camelCase
-                    : '\$${field.name.camelCase}',
-                description: field.name,
-                isRequired: field.required,
-                isFinal: true,
-                type: field.type,
-                options: field.type == 'select'
-                    ? (field.options['values'] as List).cast<String>()
-                    : [],
-              ),
-          ],
-        ),
-      ],
-    );
-    files.add(file);
-  }
-  return files;
-}
-
-enum StorageType {
-  sqlite,
-  sqflite,
-}
