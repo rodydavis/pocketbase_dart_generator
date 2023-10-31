@@ -8,6 +8,7 @@ dependencies:
   dart_style: ^2.2.4
   hive: ^2.2.3
   json_annotation: ^4.7.0
+  mustache_template: ^2.0.0
   pocketbase: ^0.4.1
   recase: ^4.0.0
 dev_dependencies:

@@ -19,7 +19,7 @@ void main() {
   });
 
   test('json generate test', () async {
-    await client.generate(hive: false);
+    await client.generate(StorageType.memory);
 
     final collectionsDir = Directory('${outDir.path}/collections');
 
@@ -39,7 +39,7 @@ void main() {
   });
 
   test('hive generate test', () async {
-    await client.generate(hive: true);
+    await client.generate(StorageType.hive);
 
     final collectionsDir = Directory('${outDir.path}/collections');
 

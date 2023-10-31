@@ -28,12 +28,13 @@ class PocketBaseGenerator {
   final bool verbose;
 
   /// Generates PocketBase Dart SDK files.
-  Future<void> generate({bool hive = true}) async {
+  Future<void> generate(StorageType storage) async {
     await authenticate(client);
     outputDir.check();
     final collections = await client.collections.getFullList();
     collectionsDir.check();
     await _createBase();
+    final hive = storage == StorageType.hive;
     final adapters = await _getHiveInfo(
       hive,
       File('${outputDir.path}/adapters.json'),
@@ -101,6 +102,7 @@ class PocketBaseGenerator {
     final file = File('${collectionsDir.path}/${collection.name}.dart');
     await file.create(recursive: true);
     final sb = StringBuffer();
+    void $([String val = '']) => sb.writeln(val);
 
     // Generate JSON and Hive
     final dartClassName = collection.name.pascalCase;
@@ -118,34 +120,34 @@ class PocketBaseGenerator {
     );
 
     // Generate Class
-    sb.writeln('import \'package:json_annotation/json_annotation.dart\';');
+    $('import \'package:json_annotation/json_annotation.dart\';');
     if (hive) {
-      sb.writeln('import \'package:hive/hive.dart\';');
+      $('import \'package:hive/hive.dart\';');
     }
-    sb.writeln();
-    sb.writeln('import \'base.dart\';');
-    sb.writeln();
-    sb.writeln('part \'${collection.name}.g.dart\';');
-    sb.writeln();
+    $();
+    $('import \'base.dart\';');
+    $();
+    $('part \'${collection.name}.g.dart\';');
+    $();
     if (hive) {
-      sb.writeln('@HiveType(typeId: $index)');
+      $('@HiveType(typeId: $index)');
     }
-    sb.writeln('@JsonSerializable()');
-    sb.writeln('class $dartClassName extends CollectionBase {');
+    $('@JsonSerializable()');
+    $('class $dartClassName extends CollectionBase {');
 
     // Generate constructor
-    sb.writeln('  const $dartClassName({');
+    $('  const $dartClassName({');
     for (final field in schema) {
-      sb.writeln('    required this.${field.name.camelCase},');
+      $('    required this.${field.name.camelCase},');
     }
-    sb.writeln('  });');
-    sb.writeln();
+    $('  });');
+    $();
 
     // Generate fields
     for (final field in schema) {
       if (hive) {
         final idx = adapters[field.name.camelCase];
-        sb.writeln('  @HiveField($idx)');
+        $('  @HiveField($idx)');
       }
       final dartType = _getDartType(field);
       sb.write('  @JsonKey(name: \'${field.name}\'');
@@ -164,26 +166,24 @@ class PocketBaseGenerator {
           break;
         default:
       }
-      sb.writeln(')');
+      $(')');
       if (['id', 'created', 'updated'].contains(field.name)) {
-        sb.writeln('  @override');
+        $('  @override');
       }
-      sb.writeln('  final $dartType ${field.name.camelCase};');
-      sb.writeln();
+      $('  final $dartType ${field.name.camelCase};');
+      $();
     }
 
     // Generate toJson
-    sb.writeln(
-        '  Map<String, dynamic> toJson() => _\$${dartClassName}ToJson(this);');
-    sb.writeln();
+    $('  Map<String, dynamic> toJson() => _\$${dartClassName}ToJson(this);');
+    $();
 
     // Generate fromJson
-    sb.writeln(
-        '  factory $dartClassName.fromJson(Map<String, dynamic> json) => _\$${dartClassName}FromJson(json);');
+    $('  factory $dartClassName.fromJson(Map<String, dynamic> json) => _\$${dartClassName}FromJson(json);');
 
     // Close class
-    sb.writeln('}');
-    sb.writeln();
+    $('}');
+    $();
 
     // Write file
     await file.writeAsString(sb.toString());
@@ -194,19 +194,20 @@ class PocketBaseGenerator {
     final file = File('${collectionsDir.path}/base.dart');
     await file.create(recursive: true);
     final sb = StringBuffer();
+    void $([String val = '']) => sb.writeln(val);
 
     // Generate Base class
-    sb.writeln('abstract class CollectionBase {');
-    sb.writeln('  const CollectionBase();');
-    sb.writeln('  String get id;');
-    sb.writeln('  DateTime get created;');
-    sb.writeln('  DateTime get updated;');
+    $('abstract class CollectionBase {');
+    $('  const CollectionBase();');
+    $('  String get id;');
+    $('  DateTime get created;');
+    $('  DateTime get updated;');
 
     // Close class
-    sb.writeln('}');
-    sb.writeln();
-    sb.writeln(converters);
-    sb.writeln();
+    $('}');
+    $();
+    $(converters);
+    $();
 
     // Write file
     await file.writeAsString(sb.toString());
@@ -218,8 +219,9 @@ class PocketBaseGenerator {
   ) async {
     final file = File('${collectionsDir.path}/index.dart');
     final sb = StringBuffer();
+    void $([String val = '']) => sb.writeln(val);
     for (final collection in collections) {
-      sb.writeln('export \'${collection.name}.dart\';');
+      $('export \'${collection.name}.dart\';');
     }
     await file.create(recursive: true);
     await file.writeAsString(sb.toString());
@@ -231,61 +233,59 @@ class PocketBaseGenerator {
   ) async {
     final file = File('${outputDir.path}/client.dart');
     final sb = StringBuffer();
-    sb.writeln('import \'package:pocketbase/pocketbase.dart\';');
+    void $([String val = '']) => sb.writeln(val);
+    $('import \'package:pocketbase/pocketbase.dart\';');
     if (hive) {
-      sb.writeln('import \'package:hive/hive.dart\';');
+      $('import \'package:hive/hive.dart\';');
     }
-    sb.writeln();
-    sb.writeln('import \'collections/index.dart\' as col;');
-    sb.writeln('import \'collections/base.dart\';');
-    sb.writeln();
+    $();
+    $('import \'collections/index.dart\' as col;');
+    $('import \'collections/base.dart\';');
+    $();
     if (hive) {
-      sb.writeln('class DbClient {');
-      sb.writeln('  DbClient(this.client);');
-      sb.writeln('  final PocketBase client;');
-      sb.writeln();
+      $('class DbClient {');
+      $('  DbClient(this.client);');
+      $('  final PocketBase client;');
+      $();
       for (final collection in collections) {
         final dartClassName = collection.name.pascalCase;
-        sb.writeln(
-            '  late final Box<col.$dartClassName> ${collection.name.camelCase}Box;');
+        $('  late final Box<col.$dartClassName> ${collection.name.camelCase}Box;');
       }
-      sb.writeln();
-      sb.writeln('  Future<void> init() async {');
-      sb.writeln('    registerAdapters();');
-      sb.writeln('    await openBoxes();');
-      sb.writeln('  }');
-      sb.writeln();
+      $();
+      $('  Future<void> init() async {');
+      $('    registerAdapters();');
+      $('    await openBoxes();');
+      $('  }');
+      $();
 
       // Open boxes
-      sb.writeln('  Future<void> openBoxes() async {');
+      $('  Future<void> openBoxes() async {');
       for (final collection in collections) {
         final dartClassName = collection.name.pascalCase;
-        sb.writeln(
-            '    ${collection.name.camelCase}Box = await Hive.openBox<col.$dartClassName>(\'${collection.name}\');');
+        $('    ${collection.name.camelCase}Box = await Hive.openBox<col.$dartClassName>(\'${collection.name}\');');
       }
-      sb.writeln('  }');
-      sb.writeln();
+      $('  }');
+      $();
 
       // // Register Hive adapters
-      sb.writeln('  void registerAdapters() {');
+      $('  void registerAdapters() {');
       for (final collection in collections) {
         final dartClassName = collection.name.pascalCase;
-        sb.writeln('    Hive.registerAdapter(col.${dartClassName}Adapter());');
+        $('    Hive.registerAdapter(col.${dartClassName}Adapter());');
       }
-      sb.writeln('  }');
-      sb.writeln();
+      $('  }');
+      $();
 
       // Get collections
       for (final collection in collections) {
         final dartClassName = collection.name.pascalCase;
-        sb.writeln("  Future<List<col.$dartClassName>> get$dartClassName() =>");
-        sb.writeln(
-            "     getItems<col.$dartClassName>('${collection.name}', ${collection.name.camelCase}Box, col.$dartClassName.fromJson,);");
-        sb.writeln();
+        $("  Future<List<col.$dartClassName>> get$dartClassName() =>");
+        $("     getItems<col.$dartClassName>('${collection.name}', ${collection.name.camelCase}Box, col.$dartClassName.fromJson,);");
+        $();
       }
 
       // Write helper
-      sb.writeln([
+      $([
         '  Future<List<T>> getItems<T extends CollectionBase>(',
         '    String name,',
         '    Box<T> box,',
@@ -317,18 +317,18 @@ class PocketBaseGenerator {
         '  }',
       ].join('\n'));
 
-      sb.writeln('}');
+      $('}');
     }
-    sb.writeln();
-    // sb.writeln('extension RecordModelUtils on RecordModel {');
+    $();
+    // $('extension RecordModelUtils on RecordModel {');
     // for (final collection in collections) {
     //   final dartClassName = collection.name.pascalCase;
     //   sb.write('  col.$dartClassName as$dartClassName() => ');
-    //   sb.writeln(' col.$dartClassName.fromJson(toJson());');
+    //   $(' col.$dartClassName.fromJson(toJson());');
     // }
-    // sb.writeln('}');
+    // $('}');
 
-    sb.writeln();
+    $();
     await file.create(recursive: true);
     file.writeAsString(sb.toString());
   }
@@ -369,4 +369,11 @@ Future<Map<String, int>> _getHiveInfo(
   }
   await file.writeAsString(jsonEncode(adapters));
   return adapters;
+}
+
+enum StorageType {
+  memory,
+  sqlite,
+  sqflite,
+  hive,
 }

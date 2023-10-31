@@ -6,14 +6,14 @@ Future<void> main(List<String> arguments) async {
     ..addOption(
       'username',
       abbr: 'u',
-      help: 'Username',
+      help: 'Admin Username',
       valueHelp: 'username',
       mandatory: true,
     )
     ..addOption(
       'password',
       abbr: 'p',
-      help: 'Password',
+      help: 'Admin Password',
       valueHelp: 'password',
       mandatory: true,
     )
@@ -31,10 +31,18 @@ Future<void> main(List<String> arguments) async {
       valueHelp: 'output',
       defaultsTo: 'lib/generated',
     )
-    ..addFlag(
-      'hive',
-      help: 'Hive classes',
-      defaultsTo: false,
+    ..addOption(
+      'storage',
+      abbr: 's',
+      help: 'Storage Type',
+      allowed: [
+        'hive',
+        'sqlite',
+        'sqflite',
+        'memory',
+      ],
+      valueHelp: 'sqlite',
+      defaultsTo: 'memory',
     )
     ..addFlag(
       'verbose',
@@ -47,9 +55,10 @@ Future<void> main(List<String> arguments) async {
   final url = args['url'] as String;
   final username = args['username'] as String;
   final password = args['password'] as String;
-  final hive = args['hive'] as bool;
   final verbose = args['verbose'] as bool;
   final output = args['output'] as String;
+  final storage = args['storage'] as String;
+  final storageType = StorageType.values.firstWhere((e) => e.name == storage);
 
   if (verbose) {
     print('Generating PocketBase Dart classes for $url');
@@ -69,7 +78,7 @@ Future<void> main(List<String> arguments) async {
   );
 
   // Generate files
-  await client.generate(hive: hive);
+  await client.generate(storageType);
 
   if (verbose) print('Done');
 }
