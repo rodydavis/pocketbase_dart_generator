@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:args/args.dart';
-import 'package:pocketbase_dart_generator/pocketbase_dart_generator.dart';
+import 'package:pocketbase/pocketbase.dart';
+import 'package:pocketbase_dart_generator/src/generator.dart';
 
 Future<void> main(List<String> arguments) async {
   final parser = ArgParser()
@@ -19,7 +22,6 @@ Future<void> main(List<String> arguments) async {
     )
     ..addOption(
       'url',
-      abbr: 'l',
       help: 'Url',
       valueHelp: 'url',
       mandatory: true,
@@ -36,13 +38,16 @@ Future<void> main(List<String> arguments) async {
       abbr: 's',
       help: 'Storage Type',
       allowed: [
-        'hive',
         'sqlite',
         'sqflite',
-        'memory',
       ],
       valueHelp: 'sqlite',
-      defaultsTo: 'memory',
+      defaultsTo: 'sqlite',
+    )
+    ..addFlag(
+      'hive',
+      help: 'Hive types',
+      defaultsTo: false,
     )
     ..addFlag(
       'verbose',
@@ -56,6 +61,7 @@ Future<void> main(List<String> arguments) async {
   final username = args['username'] as String;
   final password = args['password'] as String;
   final verbose = args['verbose'] as bool;
+  final hive = args['hive'] as bool;
   final output = args['output'] as String;
   final storage = args['storage'] as String;
   final storageType = StorageType.values.firstWhere((e) => e.name == storage);
@@ -69,16 +75,18 @@ Future<void> main(List<String> arguments) async {
     return;
   }
 
-  // Create client
-  final client = PocketBaseGenerator(
-    url,
-    authenticate: (client) => client.admins.authViaEmail(username, password),
-    verbose: verbose,
-    output: output,
-  );
-
-  // Generate files
-  await client.generate(storageType);
+  final pb = PocketBase(url);
+  await pb.admins.authWithPassword(username, password);
+  final collections = await pb.collections.getFullList();
+  final files = convertCollections(collections, storageType, hive);
+  for (final value in files) {
+    final str = renderTemplate(value);
+    final file = File('$output/${value.filename}.dart');
+    if (!file.existsSync()) {
+      file.createSync(recursive: true);
+    }
+    file.writeAsStringSync(str);
+  }
 
   if (verbose) print('Done');
 }
